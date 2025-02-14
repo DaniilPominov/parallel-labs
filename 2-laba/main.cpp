@@ -25,30 +25,37 @@ void* iterate_matrix(void* arg) {
     int start = id * m / data->t_count;
     int end = (id + 1) *m / data->t_count;
     std::cout << start << " " << end << "\n";
-    start_iter:
-    bool done = true;
+while(true){
     for (int i = start; i < end; i++) {
         for (int j = 0; j < n; j++) {
             double new_value;
+            double locA = data->A[i][j];
+            double locB = data->B[i][j];
+            double locB1 = 0.0;
             if (i < m - 1) {
+                locB1 = data->A[i + 1][j];
                 new_value = (data->A[i][j] + data->A[i + 1][j] + data->B[i][j]) / 3.0;
             } else {
                 new_value = (data->A[i][j] + data->B[i][j]) / 2.0;
             }
-            bool local_done = (bool)(std::abs(new_value - data->B[i][j]) <= e);
-
-            if (local_done) {
-                data->A[i][j] = new_value;
-            }
-            double goal = data->B[i][j];
-            done = done && local_done;
+            data->A[i][j] = new_value;
         }
     }
-    
-    if(!done){
-        goto start_iter;
+    bool done = true;
+    for (int i = start; i < end; i++) {
+        for (int j = 0; j < n; j++) {
+            double locA = data->A[i][j];
+            double locB = data->B[i][j];
+            double error = std::abs(data->A[i][j] - data->B[i][j]);
+            if(error>e){
+                done = false;
+            }
+        }
     }
-
+    if(done==true){
+        break;
+    }
+}
     return NULL;
 }
 
@@ -57,15 +64,15 @@ int main() {
     const int num_threads = 2;
     int m = 2; 
     int n = 2; 
-    double e = 5; 
+    double e = 1; 
 
     std::vector<std::vector<double>> A(m, std::vector<double>(n, 0.0));
     std::vector<std::vector<double>> B(m, std::vector<double>(n, 0.0));
 
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < n; ++j) {
-            A[i][j] = static_cast<double>(random()%50);
-            B[i][j] = static_cast<double>(random()%50);
+            A[i][j] = static_cast<double>(random()%10);
+            B[i][j] = static_cast<double>(random()%10);
         }
     }
 
