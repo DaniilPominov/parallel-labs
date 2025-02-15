@@ -121,10 +121,10 @@ int main() {
             pthread_join(threads[i], nullptr);
         }
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     // Вывод итоговой матрицы A
     std::cout << "Final matrix A:" << std::endl;
-    std::cout << "Время выполнения: " << duration.count() << " микросекунд." << std::endl;
+    std::cout << "Время выполнения: " << duration.count() << " ms." << std::endl;
     // for (const auto& row : A) {
     //     for (double val : row) {
     //         std::cout << val << "|";
