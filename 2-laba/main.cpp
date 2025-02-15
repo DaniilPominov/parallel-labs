@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <pthread.h>
-
+#include <chrono>
 struct ThreadData {
     int id;               
     int m;                
@@ -36,7 +36,7 @@ while(done==false){
             if (i < m - 1) {
                 locB1 = data->A[i+1][j];
                 // new_value = (data->A[i][j]+data->A[i][j] + data->B[i][j]) / 3.0;
-                new_value = (data->A[i][j] + data->A[i+1][j] + data->B[i][j]) / 3.0;
+                new_value = (data->A[i][j] + data->B[i][j] + data->B[i][j]) / 3.0;
                 // рассмотрим предпоследнюю строку матрицы, когда последняя строка сошлась в своим значениями в матрице B
                 // эту ситуацию можно записать как a_i = (a_i-1 +b +c)/3, где b,c для нас константы, это значение из матрицы B
                 // и значение из последней строки преобразуемой матрицы. Такая последовательность очевидно сходится к (b+c)/2.
@@ -67,9 +67,9 @@ while(done==false){
 
 int main() {
     srand(time(NULL));
-    const int num_threads = 2;
-    int m = 3; 
-    int n = 3; 
+    const int num_threads = 6;
+    int m = 4096; 
+    int n = 4096; 
     double e = 0.1; 
 
     std::vector<std::vector<double>> A(m, std::vector<double>(n, 0.0));
@@ -77,28 +77,28 @@ int main() {
 
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < n; ++j) {
-            A[i][j] = static_cast<double>(random()%10);
-            B[i][j] = static_cast<double>(random()%10);
+            A[i][j] = static_cast<double>(random()%100);
+            B[i][j] = static_cast<double>(random()%100);
         }
     }
 
     std::cout << "Initial matrix A:" << std::endl;
-    for (const auto& row : A) {
-        for (double val : row) {
-            std::cout << val << " ";
-        }
-        std::cout << std::endl;
-    }
+    // for (const auto& row : A) {
+    //     for (double val : row) {
+    //         std::cout << val << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
     std::cout << "Initial matrix B:" << std::endl;
-    for (const auto& row : B) {
-        for (double val : row) {
-            std::cout << val << " ";
-        }
-        std::cout << std::endl;
-    }
+    // for (const auto& row : B) {
+    //     for (double val : row) {
+    //         std::cout << val << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
-    
+    auto start = std::chrono::high_resolution_clock::now();
     pthread_t threads[num_threads];
     std::vector<ThreadData*> thread_data;
 
@@ -120,17 +120,17 @@ int main() {
         for (int i = 0; i < num_threads; ++i) {
             pthread_join(threads[i], nullptr);
         }
-
-    // Уничтожаем мьютекс
-
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     // Вывод итоговой матрицы A
     std::cout << "Final matrix A:" << std::endl;
-    for (const auto& row : A) {
-        for (double val : row) {
-            std::cout << val << "|";
-        }
-        std::cout << std::endl;
-    }
+    std::cout << "Время выполнения: " << duration.count() << " микросекунд." << std::endl;
+    // for (const auto& row : A) {
+    //     for (double val : row) {
+    //         std::cout << val << "|";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
     return 0;
 }
