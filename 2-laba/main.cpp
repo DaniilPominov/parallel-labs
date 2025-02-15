@@ -25,7 +25,8 @@ void* iterate_matrix(void* arg) {
     int start = id * m / data->t_count;
     int end = (id + 1) *m / data->t_count;
     std::cout << start << " " << end << "\n";
-while(true){
+    bool done = false;
+while(done==false){
     for (int i = start; i < end; i++) {
         for (int j = 0; j < n; j++) {
             double new_value;
@@ -33,15 +34,20 @@ while(true){
             double locB = data->B[i][j];
             double locB1 = 0.0;
             if (i < m - 1) {
-                locB1 = data->A[i + 1][j];
-                new_value = (data->A[i][j] + data->A[i + 1][j] + data->B[i][j]) / 3.0;
+                locB1 = data->A[i+1][j];
+                // new_value = (data->A[i][j]+data->A[i][j] + data->B[i][j]) / 3.0;
+                new_value = (data->A[i][j] + data->A[i+1][j] + data->B[i][j]) / 3.0;
+                // рассмотрим предпоследнюю строку матрицы, когда последняя строка сошлась в своим значениями в матрице B
+                // эту ситуацию можно записать как a_i = (a_i-1 +b +c)/3, где b,c для нас константы, это значение из матрицы B
+                // и значение из последней строки преобразуемой матрицы. Такая последовательность очевидно сходится к (b+c)/2.
+                // Невозможно сделать матрица А похожей на Б с любой заданной точностью, если не окажется, что (b+c)/2 уложится в эту точность.
             } else {
                 new_value = (data->A[i][j] + data->B[i][j]) / 2.0;
             }
             data->A[i][j] = new_value;
         }
     }
-    bool done = true;
+    done = true;
     for (int i = start; i < end; i++) {
         for (int j = 0; j < n; j++) {
             double locA = data->A[i][j];
@@ -52,9 +58,9 @@ while(true){
             }
         }
     }
-    if(done==true){
-        break;
-    }
+    // if(done==true){
+    //     break;
+    // }
 }
     return NULL;
 }
@@ -62,9 +68,9 @@ while(true){
 int main() {
     srand(time(NULL));
     const int num_threads = 2;
-    int m = 2; 
-    int n = 2; 
-    double e = 1; 
+    int m = 3; 
+    int n = 3; 
+    double e = 0.1; 
 
     std::vector<std::vector<double>> A(m, std::vector<double>(n, 0.0));
     std::vector<std::vector<double>> B(m, std::vector<double>(n, 0.0));
