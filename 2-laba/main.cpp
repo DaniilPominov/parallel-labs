@@ -1,12 +1,12 @@
 #include <iostream>
 #include <vector>
-#include <cmath>
 #include <pthread.h>
-
+#include <chrono>
 struct ThreadData {
     int id;               
     int m;                
-    int n;                
+    int n;       
+    int t_count;          
     std::vector<std::vector<double>> &A; 
     std::vector<std::vector<double>> &B; 
     double e;            
@@ -22,63 +22,77 @@ void* iterate_matrix(void* arg) {
     int n = data->n;
     double e = data->e;
     //диапазон 
-    int start = id * m / data->m;
-    int end = (id + 1) * m / data->m;
-
-
-    for (int i = start; i < end; ++i) {
-        for (int j = 0; j < n; ++j) {
+    int start = id * m / data->t_count;
+    int end = (id + 1) *m / data->t_count;
+    std::cout << start << " " << end << "\n";
+    bool done = false;
+while(done==false){
+    for (int i = start; i < end; i++) {
+        for (int j = 0; j < n; j++) {
             double new_value;
             if (i < m - 1) {
-                new_value = (data->A[i][j] + data->A[i + 1][j] + data->B[i][j]) / 3.0;
+                // new_value = (data->A[i][j]+data->A[i][j] + data->B[i][j]) / 3.0;
+                new_value = (data->A[i][j] + data->B[i][j] + data->B[i][j]) / 3.0;
+                // рассмотрим предпоследнюю строку матрицы, когда последняя строка сошлась в своим значениями в матрице B
+                // эту ситуацию можно записать как a_i = (a_i-1 +b +c)/3, где b,c для нас константы, это значение из матрицы B
+                // и значение из последней строки преобразуемой матрицы. Такая последовательность очевидно сходится к (b+c)/2.
+                // Невозможно сделать матрица А похожей на Б с любой заданной точностью, если не окажется, что (b+c)/2 уложится в эту точность.
             } else {
                 new_value = (data->A[i][j] + data->B[i][j]) / 2.0;
             }
-
-            if (std::abs(new_value - data->B[i][j]) >= e) {
-            }
-
             data->A[i][j] = new_value;
         }
     }
-
-
-    pthread_exit(nullptr);
+    done = true;
+    for (int i = start; i < end; i++) {
+        for (int j = 0; j < n; j++) {
+            double error = std::abs(data->A[i][j] - data->B[i][j]);
+            if(error>e){
+                done = false;
+            }
+        }
+    }
+    // if(done==true){
+    //     break;
+    // }
+}
+    return NULL;
 }
 
 int main() {
     srand(time(NULL));
-    int m = 4; 
-    int n = 4; 
-    double e = 0.01; 
+    const int num_threads = 6;
+    int m = 4096; 
+    int n = 4096; 
+    double e = 0.1; 
 
     std::vector<std::vector<double>> A(m, std::vector<double>(n, 0.0));
     std::vector<std::vector<double>> B(m, std::vector<double>(n, 0.0));
 
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < n; ++j) {
-            A[i][j] = static_cast<double>(random()%100);
-            B[i][j] = static_cast<double>(random()%100);
+            A[i][j] = static_cast<double>(random());
+            B[i][j] = static_cast<double>(random());
         }
     }
 
     std::cout << "Initial matrix A:" << std::endl;
-    for (const auto& row : A) {
-        for (double val : row) {
-            std::cout << val << " ";
-        }
-        std::cout << std::endl;
-    }
+    // for (const auto& row : A) {
+    //     for (double val : row) {
+    //         std::cout << val << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
     std::cout << "Initial matrix B:" << std::endl;
-    for (const auto& row : B) {
-        for (double val : row) {
-            std::cout << val << " ";
-        }
-        std::cout << std::endl;
-    }
+    // for (const auto& row : B) {
+    //     for (double val : row) {
+    //         std::cout << val << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
-    const int num_threads = 4;
+    auto start = std::chrono::high_resolution_clock::now();
     pthread_t threads[num_threads];
     std::vector<ThreadData*> thread_data;
 
@@ -86,16 +100,13 @@ int main() {
 		auto tdata = new ThreadData(A,B);
 		thread_data.push_back(tdata);
 	}
-    pthread_mutex_t mutex;
-    pthread_mutex_init(&mutex, nullptr);
-
-    bool done = false;
 
         for (int i = 0; i < num_threads; i++) {
             thread_data[i]->id = i;
             thread_data[i]->m = m;
             thread_data[i]->n = n;
             thread_data[i]->e = e;
+            thread_data[i]->t_count = num_threads;
             pthread_create(&threads[i], nullptr, iterate_matrix, thread_data[i]);
         }
 
@@ -103,17 +114,17 @@ int main() {
         for (int i = 0; i < num_threads; ++i) {
             pthread_join(threads[i], nullptr);
         }
-
-    // Уничтожаем мьютекс
-
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     // Вывод итоговой матрицы A
     std::cout << "Final matrix A:" << std::endl;
-    for (const auto& row : A) {
-        for (double val : row) {
-            std::cout << val << " ";
-        }
-        std::cout << std::endl;
-    }
+    std::cout << "Время выполнения: " << duration.count() << " ms." << std::endl;
+    // for (const auto& row : A) {
+    //     for (double val : row) {
+    //         std::cout << val << "|";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
     return 0;
 }

@@ -4,13 +4,12 @@
 #include <string.h>
 #include <iostream>
 #include <cstring>
-
-typedef struct {
+ struct ThreadData {
     const char *text;
     int start;        
     int end;         
     int vowel_count; 
-} ThreadData;
+};
 
 bool is_vowel(char c) {
     c = tolower(c);
@@ -50,14 +49,12 @@ int main(){
 	for (int i = 0; i < threadsCount; i++) {
 	        pthread_join(threads[i], NULL);
 	    }
-	
-	    // Суммируем результаты
 	    int total_vowels = 0;
 	    for (int i = 0; i < threadsCount; i++) {
 	        total_vowels += thread_data[i].vowel_count;
 	    }
 	
-	    std::cout << "Total vowels in the text: %d\n" << total_vowels << "\n";
+	    std::cout << "Total vowels in the text:\n" << total_vowels << "\n";
 	
 	    return 0;
 }
