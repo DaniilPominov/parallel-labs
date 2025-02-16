@@ -30,11 +30,7 @@ while(done==false){
     for (int i = start; i < end; i++) {
         for (int j = 0; j < n; j++) {
             double new_value;
-            double locA = data->A[i][j];
-            double locB = data->B[i][j];
-            double locB1 = 0.0;
             if (i < m - 1) {
-                locB1 = data->A[i+1][j];
                 // new_value = (data->A[i][j]+data->A[i][j] + data->B[i][j]) / 3.0;
                 new_value = (data->A[i][j] + data->B[i][j] + data->B[i][j]) / 3.0;
                 // рассмотрим предпоследнюю строку матрицы, когда последняя строка сошлась в своим значениями в матрице B
@@ -50,8 +46,6 @@ while(done==false){
     done = true;
     for (int i = start; i < end; i++) {
         for (int j = 0; j < n; j++) {
-            double locA = data->A[i][j];
-            double locB = data->B[i][j];
             double error = std::abs(data->A[i][j] - data->B[i][j]);
             if(error>e){
                 done = false;
@@ -77,8 +71,8 @@ int main() {
 
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < n; ++j) {
-            A[i][j] = static_cast<double>(random()%100);
-            B[i][j] = static_cast<double>(random()%100);
+            A[i][j] = static_cast<double>(random());
+            B[i][j] = static_cast<double>(random());
         }
     }
 
