@@ -3,8 +3,9 @@
 #include <pthread.h>
 #include <chrono>
 #include <queue>
-#include <semaphore.h> // Для POSIX-семафоров
+#include <semaphore.h>
 
+// Структура на каждый поток
 struct ThreadData {
     int id;               
     int m;                
@@ -18,16 +19,16 @@ struct ThreadData {
 
 // Структура для хранения промежуточных результатов
 struct Result {
-    int thread_id; // Идентификатор потока
-    int iteration; // Номер итерации
-    double value;  // Значение
+    int thread_id;
+    int iteration;
+    double value;  
 };
 
 // Общая очередь для хранения промежуточных результатов
 std::queue<Result> result_queue;
 
-// Двоичный семафор для защиты доступа к очереди
-sem_t queue_semaphore;
+//sem_t queue_semaphore;
+pthread_mutex_t mutex;
 
 void* iterate_matrix(void* arg) {
     ThreadData* data = (ThreadData*)arg;
@@ -35,7 +36,7 @@ void* iterate_matrix(void* arg) {
     int m = data->m;
     int n = data->n;
     double e = data->e;
-    int iteration = 0; // Счетчик итераций
+    int iteration = 0;
 
     // Диапазон работы потока
     int start = id * m / data->t_count;
@@ -44,6 +45,7 @@ void* iterate_matrix(void* arg) {
     bool done = false;
     while (!done) {
         iteration++;
+        std::vector<Result> local_results;
         for (int i = start; i < end; i++) {
             for (int j = 0; j < n; j++) {
                 double new_value;
@@ -55,18 +57,22 @@ void* iterate_matrix(void* arg) {
                 }
                 data->A[i][j] = new_value;
 
-                // Запись промежуточного результата в очередь
+                // Промежуточный результат
                 Result res;
                 res.thread_id = id;
                 res.iteration = iteration;
                 res.value = new_value;
-
-                // Захват семафора для защиты очереди
-                sem_wait(&queue_semaphore);
-                result_queue.push(res);
-                sem_post(&queue_semaphore);
+                local_results.push_back(res);
             }
         }
+        // Запись через семафор
+        //sem_wait(&queue_semaphore);
+        pthread_mutex_lock(&mutex); 
+        for (const auto& res : local_results) {
+            result_queue.push(res);
+        }
+        pthread_mutex_unlock(&mutex);
+        //sem_post(&queue_semaphore);
 
         // Проверка условия завершения
         done = true;
@@ -88,9 +94,10 @@ void* iterate_matrix(void* arg) {
 int main() {
     srand(time(NULL));
     const int num_threads = 2;
-    int m = 4; 
-    int n = 4; 
+    int m = 400; 
+    int n = 400; 
     double e = 5; 
+    bool print_console = false;
 
     std::vector<std::vector<double>> A(m, std::vector<double>(n, 0.0));
     std::vector<std::vector<double>> B(m, std::vector<double>(n, 0.0));
@@ -101,6 +108,7 @@ int main() {
             B[i][j] = static_cast<double>(random()%1000);
         }
     }
+    if(print_console){
     std::cout << "Initial matrix A:" << std::endl;
     for (const auto& row : A) {
         for (double val : row) {
@@ -116,9 +124,11 @@ int main() {
         }
         std::cout << std::endl;
     }
+}
 
     // Инициализация семафора
-    sem_init(&queue_semaphore, 0, 1); // Инициализация семафора значением 1
+    //sem_init(&queue_semaphore, 0, 1);
+    pthread_mutex_init(&mutex, nullptr);
 
     auto start = std::chrono::high_resolution_clock::now();
     pthread_t threads[num_threads];
@@ -151,12 +161,13 @@ int main() {
     while (!result_queue.empty()) {
         Result res = result_queue.front();
         result_queue.pop();
+        if(print_console)
         std::cout << "Поток " << res.thread_id << ", Итерация " << res.iteration << ", Значение: " << res.value << std::endl;
     }
 
     // Уничтожение семафора
-    sem_destroy(&queue_semaphore);
-
+    //sem_destroy(&queue_semaphore);
+    pthread_mutex_destroy(&mutex);
     std::cout << "Время выполнения: " << duration.count() << " ms." << std::endl;
 
     // Освобождение памяти
