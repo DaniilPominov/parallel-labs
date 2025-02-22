@@ -27,7 +27,7 @@ struct Result {
 std::queue<Result> result_queue;
 
 // Мьютекс для защиты доступа к очереди
-pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t queue_mutex;
 
 // Счетный семафор для ограничения количества одновременно работающих потоков
 sem_t thread_semaphore;
@@ -137,7 +137,7 @@ int main() {
 
     // Инициализация счетного семафора
     sem_init(&thread_semaphore, 0, K);
-
+    // Таймер выполнения
     auto start = std::chrono::high_resolution_clock::now();
 
     pthread_t threads[num_threads];
@@ -165,7 +165,7 @@ int main() {
     for (int i = 0; i < num_threads; ++i) {
         pthread_join(threads[i], nullptr);
     }
-
+    // Конец таймера
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
