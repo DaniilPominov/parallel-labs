@@ -75,9 +75,9 @@ void* reader(void* arg) {
         sem_post(&write_s); // Освобождение на запись
         // Обработка новых предложений
         
-        // Сортировка по price * max_shows
+        // Сортировка по price * max_shows / duration (от большего к меньшему)
         std::sort(new_ads.begin(), new_ads.end(), [](const Ad& a, const Ad& b) {
-        return a.price * a.max_shows < b.price * b.max_shows;
+        return (a.price * a.max_shows)/a.duration > (b.price * b.max_shows)/b.duration;
         });
 
         for (const auto& ad : new_ads) {
