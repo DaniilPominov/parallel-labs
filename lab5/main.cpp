@@ -14,12 +14,11 @@ struct Ad {
 };
 
 // Глобальные переменные
-std::vector<Ad> ads;            // Список всех рекламных роликов
 int total_time = 86400;         // Общее время на эфире в секундах 86400 = 24 часа
 int profit = 0;                 // Общая прибыль
 pthread_rwlock_t rwlock;        // Блокировка чтения-записи
 std::string filename = "ads.txt"; // Файл для хранения рекламных предложений
-sem_t read_s, write_s;
+sem_t read_s, write_s; // Семафоры для синхронизации
 
 // Функция для генерации случайного рекламного предложения
 Ad generate_ad(int id) {
@@ -31,8 +30,6 @@ void* writer(void* arg) {
     srand(time(NULL));
     int id = 1;
     while (total_time>10) {
-
-
         // Запись в файл
         sem_wait(&write_s); // Ожидание пока не прочитают
         pthread_rwlock_wrlock(&rwlock); // Блокировка для записи
@@ -75,7 +72,7 @@ void* reader(void* arg) {
         sem_post(&write_s); // Освобождение на запись
         // Обработка новых предложений
         
-        // Сортировка по price * max_shows / duration (от большего к меньшему)
+        // Сортировка по price * max_shows / duration = monet per second (от большего к меньшему)
         std::sort(new_ads.begin(), new_ads.end(), [](const Ad& a, const Ad& b) {
         return (a.price * a.max_shows)/a.duration > (b.price * b.max_shows)/b.duration;
         });
