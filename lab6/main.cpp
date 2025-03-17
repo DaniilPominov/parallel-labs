@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <forward_list>
+#include <iostream>
 // Простейший односвязный список
 class Node {
     public:
@@ -45,6 +46,7 @@ void* adder_thread(void* arg) {
         if (list_length == 3) {
             pthread_cond_broadcast(&cond_min_three);
         }
+        std::cout<<"created new node\n";
 
         sleep(1);
     }
@@ -55,17 +57,16 @@ void* adder_thread(void* arg) {
 void* remover_thread(void* arg) {
     while (1) {
         pthread_rwlock_wrlock(&list_rwlock);
-        while (!nodes.empty()) {
-            pthread_rwlock_unlock(&list_rwlock);
+        //while (!nodes.empty()) {
             pthread_mutex_lock(&cond_mutex);
             pthread_cond_wait(&cond_non_empty, &cond_mutex);
+            nodes.pop_front();
+            list_length--;  
             pthread_mutex_unlock(&cond_mutex);
-            pthread_rwlock_wrlock(&list_rwlock);
-        }
-        nodes.pop_front();
-        list_length--;
+        //}
+        
         pthread_rwlock_unlock(&list_rwlock);
-
+        std::cout<<"remowed node\n";
         sleep(1);
     }
     return NULL;
