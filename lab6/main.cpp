@@ -73,7 +73,7 @@ void* adder_thread(void* arg) {
         }
         std::cout<<"created new node\n";
 
-        sleep(1);
+        //sleep(1);
     }
     return NULL;
 }
@@ -94,7 +94,7 @@ void* remover_thread(void* arg) {
         
         pthread_rwlock_unlock(&list_rwlock);
         std::cout<<"remowed node\n";
-        sleep(1);
+        //sleep(1);
     }
     return NULL;
 }
@@ -137,7 +137,7 @@ void* scalar_product_thread(void* arg) {
         printf("Len of list%d\n",list_length);
         pthread_rwlock_unlock(&list_rwlock);
 
-        sleep(1);
+        //sleep(1);
     }
     return NULL;
 }
@@ -180,7 +180,7 @@ void* vector_product_thread(void* arg) {
         double cross_z = node1.x * node2.y - node1.y * node2.x;
         printf("Vector product: (%d, %d, %d)\n", cross_x, cross_y, cross_z);
         pthread_rwlock_unlock(&list_rwlock);
-        sleep(1);
+        //sleep(1);
     }
     return NULL;
 }
@@ -218,7 +218,7 @@ void* coplanar_pairs_thread(void* arg) {
         }
         pthread_rwlock_unlock(&list_rwlock);
 
-        sleep(1);
+        //sleep(1);
     }
     return NULL;
 }
@@ -260,7 +260,7 @@ void* coplanar_triples_thread(void* arg) {
         }
         pthread_rwlock_unlock(&list_rwlock);
 
-        sleep(1);
+        //sleep(1);
     }
     return NULL;
 }
