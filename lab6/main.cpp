@@ -23,6 +23,31 @@ pthread_cond_t cond_min_three = PTHREAD_COND_INITIALIZER;
 
 // Поток добавления элементов
 void* adder_thread(void* arg) {
+    for(int j=0;j<10;j++){
+        Node new_node;
+
+        new_node.x = rand() % 100;
+        new_node.y = rand() % 100;
+        new_node.z = rand() % 100;
+
+        pthread_rwlock_wrlock(&list_rwlock);
+
+        nodes.push_front(new_node);
+        list_length++;
+        pthread_rwlock_unlock(&list_rwlock);
+
+        if (list_length == 1) {
+
+            pthread_cond_broadcast(&cond_non_empty);
+        }
+        if (list_length == 2) {
+            pthread_cond_broadcast(&cond_min_two);
+        }
+        if (list_length == 3) {
+            pthread_cond_broadcast(&cond_min_three);
+        }
+        std::cout<<"created new node\n";
+    }
     while (1) {
         Node new_node;
 
@@ -59,9 +84,11 @@ void* remover_thread(void* arg) {
         pthread_rwlock_wrlock(&list_rwlock);
         //while (!nodes.empty()) {
             pthread_mutex_lock(&cond_mutex);
-            pthread_cond_wait(&cond_non_empty, &cond_mutex);
+            //pthread_cond_wait(&cond_non_empty, &cond_mutex);
+            if(!nodes.empty()){
             nodes.pop_front();
             list_length--;  
+            }
             pthread_mutex_unlock(&cond_mutex);
         //}
         
@@ -107,7 +134,7 @@ void* scalar_product_thread(void* arg) {
 
         double product = node1.x * node2.x + node1.y * node2.y + node1.z * node2.z;
         printf("Scalar product: %f\n", product);
-        printf("%d\n",list_length);
+        printf("Len of list%d\n",list_length);
         pthread_rwlock_unlock(&list_rwlock);
 
         sleep(1);
