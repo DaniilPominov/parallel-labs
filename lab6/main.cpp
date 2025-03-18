@@ -23,6 +23,7 @@ pthread_cond_t cond_min_three = PTHREAD_COND_INITIALIZER;
 
 // Поток добавления элементов
 void* adder_thread(void* arg) {
+    pthread_rwlock_wrlock(&list_rwlock);
     for(int j=0;j<10;j++){
         Node new_node;
 
@@ -30,11 +31,11 @@ void* adder_thread(void* arg) {
         new_node.y = rand() % 100;
         new_node.z = rand() % 100;
 
-        pthread_rwlock_wrlock(&list_rwlock);
+        
 
         nodes.push_front(new_node);
         list_length++;
-        pthread_rwlock_unlock(&list_rwlock);
+        
 
         if (list_length == 1) {
 
@@ -48,6 +49,7 @@ void* adder_thread(void* arg) {
         }
         std::cout<<"created new node\n";
     }
+    pthread_rwlock_unlock(&list_rwlock);
     while (1) {
         Node new_node;
 
@@ -81,18 +83,20 @@ void* adder_thread(void* arg) {
 // Поток удаления элементов
 void* remover_thread(void* arg) {
     while (1) {
-        pthread_rwlock_wrlock(&list_rwlock);
-        //while (!nodes.empty()) {
-            pthread_mutex_lock(&cond_mutex);
-            //pthread_cond_wait(&cond_non_empty, &cond_mutex);
-            if(!nodes.empty()){
-            nodes.pop_front();
-            list_length--;  
+        if(!nodes.empty()){
+            auto current = nodes.begin();
+            auto end = nodes.end();
+            int sub_iter = 0;
+            while(sub_iter<list_length-3){
+                sub_iter++;
+                current++;
             }
-            pthread_mutex_unlock(&cond_mutex);
-        //}
-        
-        pthread_rwlock_unlock(&list_rwlock);
+            pthread_rwlock_wrlock(&list_rwlock);
+
+            nodes.erase_after(current,end);
+            list_length--;
+            pthread_rwlock_unlock(&list_rwlock);
+        }     
         std::cout<<"remowed node\n";
         //sleep(1);
     }
@@ -134,7 +138,7 @@ void* scalar_product_thread(void* arg) {
 
         double product = node1.x * node2.x + node1.y * node2.y + node1.z * node2.z;
         printf("Scalar product: %f\n", product);
-        printf("Len of list%d\n",list_length);
+        printf("Len of list:%d\n",list_length);
         pthread_rwlock_unlock(&list_rwlock);
 
         //sleep(1);
