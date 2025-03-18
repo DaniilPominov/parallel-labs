@@ -89,10 +89,11 @@ void* remover_thread(void* arg) {
             int sub_iter = 0;
             while(sub_iter<list_length-3){
                 sub_iter++;
+                if(current!=end)
                 current++;
             }
             pthread_rwlock_wrlock(&list_rwlock);
-
+            if(current!=end)
             nodes.erase_after(current,end);
             list_length--;
             pthread_rwlock_unlock(&list_rwlock);
