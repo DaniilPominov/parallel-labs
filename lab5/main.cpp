@@ -16,9 +16,9 @@ struct Ad {
 // Глобальные переменные
 int total_time = 86400;         // Общее время на эфире в секундах 86400 = 24 часа
 int profit = 0;                 // Общая прибыль
-pthread_rwlock_t rwlock;        // Блокировка чтения-записи
 std::string filename = "ads.txt"; // Файл для хранения рекламных предложений
-sem_t read_s, write_s; // Семафоры для синхронизации
+pthread_cond_t cond_non_empty = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Функция для генерации случайного рекламного предложения
 Ad generate_ad(int id) {
@@ -31,8 +31,8 @@ void* writer(void* arg) {
     int id = 1;
     while (total_time>10) {
         // Запись в файл
-        sem_wait(&write_s); // Ожидание пока не прочитают
-        pthread_rwlock_wrlock(&rwlock); // Блокировка для записи
+        //pthread_mutex_lock(&cond_mutex); // Ожидание пока не прочитают
+        //pthread_rwlock_wrlock(&rwlock); // Блокировка для записи
         std::ofstream file(filename, std::ios::trunc);
         if (file.is_open()) {
             for(int i = 0; i < random()%10+1; i++) {
@@ -44,8 +44,9 @@ void* writer(void* arg) {
         } else {
             std::cerr << "Ошибка открытия файла для записи!" << std::endl;
         }
-        pthread_rwlock_unlock(&rwlock); // Разблокировка
-        sem_post(&read_s); // Освобождение на чтение
+        pthread_cond_broadcast(&cond_non_empty);
+        //pthread_rwlock_unlock(&rwlock); // Разблокировка
+        //pthread_mutex_unlock(&cond_mutex); // Освобождение на чтение
         //sleep(2); // Имитация задержки
     }
     return nullptr;
@@ -54,8 +55,9 @@ void* writer(void* arg) {
 // Поток "читатель"
 void* reader(void* arg) {
     while (total_time>10) {
-        sem_wait(&read_s); // Ожидание пока будет что прочитать
-        pthread_rwlock_rdlock(&rwlock); // Блокировка для чтения и записи
+        pthread_mutex_lock(&cond_mutex); // Ожидание пока будет что прочитать
+        pthread_cond_wait(&cond_non_empty, &cond_mutex);
+        //pthread_rwlock_rdlock(&rwlock); // Блокировка для чтения и записи
         std::ifstream file(filename);
         std::vector<Ad> new_ads;
         if (file.is_open()) {
@@ -68,8 +70,8 @@ void* reader(void* arg) {
         } else {
             std::cerr << "Ошибка открытия файла для чтения!" << std::endl;
         }
-        pthread_rwlock_unlock(&rwlock); // Разблокировка
-        sem_post(&write_s); // Освобождение на запись
+        pthread_mutex_unlock(&cond_mutex); // Разблокировка
+        //sem_post(&write_s); // Освобождение на запись
         // Обработка новых предложений
         
         // Сортировка по price * max_shows / duration = monet per second (от большего к меньшему)
@@ -100,9 +102,9 @@ void* reader(void* arg) {
 
 int main() {
 
-    pthread_rwlock_init(&rwlock, nullptr);
-    sem_init(&read_s, 0, 0);
-    sem_init(&write_s, 0, 1);
+   // pthread_rwlock_init(&rwlock, nullptr);
+    //sem_init(&read_s, 0, 0);
+   // sem_init(&write_s, 0, 1);
 
     // Создание потоков
     pthread_t writer_thread, reader_thread;
@@ -113,7 +115,8 @@ int main() {
     pthread_join(reader_thread, nullptr);
     std::cout << "Общая прибыль: " << profit << " денег." << std::endl;
     // Уничтожение блокировки
-    pthread_rwlock_destroy(&rwlock);
+    pthread_mutex_destroy(&cond_mutex);
+    pthread_cond_destroy(&cond_non_empty);
 
     return 0;
 }
