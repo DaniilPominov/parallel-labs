@@ -23,33 +23,6 @@ pthread_cond_t cond_min_three = PTHREAD_COND_INITIALIZER;
 
 // Поток добавления элементов
 void* adder_thread(void* arg) {
-    pthread_rwlock_wrlock(&list_rwlock);
-    for(int j=0;j<10;j++){
-        Node new_node;
-
-        new_node.x = rand() % 100;
-        new_node.y = rand() % 100;
-        new_node.z = rand() % 100;
-
-        
-
-        nodes.push_front(new_node);
-        list_length++;
-        
-
-        if (list_length == 1) {
-
-            pthread_cond_broadcast(&cond_non_empty);
-        }
-        if (list_length == 2) {
-            pthread_cond_broadcast(&cond_min_two);
-        }
-        if (list_length == 3) {
-            pthread_cond_broadcast(&cond_min_three);
-        }
-        std::cout<<"created new node\n";
-    }
-    pthread_rwlock_unlock(&list_rwlock);
     while (1) {
         Node new_node;
 
@@ -63,14 +36,14 @@ void* adder_thread(void* arg) {
         list_length++;
         pthread_rwlock_unlock(&list_rwlock);
 
-        if (list_length == 1) {
+        if (list_length >= 1) {
 
             pthread_cond_broadcast(&cond_non_empty);
         }
-        if (list_length == 2) {
+        if (list_length >= 2) {
             pthread_cond_broadcast(&cond_min_two);
         }
-        if (list_length == 3) {
+        if (list_length >= 3) {
             pthread_cond_broadcast(&cond_min_three);
         }
         std::cout<<"created new node\n";
@@ -96,9 +69,10 @@ void* remover_thread(void* arg) {
             if(current!=end)
             nodes.erase_after(current,end);
             list_length--;
+            std::cout<<"remowed nodes\n";
             pthread_rwlock_unlock(&list_rwlock);
         }     
-        std::cout<<"remowed node\n";
+        
         //sleep(1);
     }
     return NULL;
@@ -107,17 +81,12 @@ void* remover_thread(void* arg) {
 // Поток вычисления скалярного произведения
 void* scalar_product_thread(void* arg) {
     while (1) {
+
         pthread_mutex_lock(&cond_mutex);
         while (list_length < 2) {
             pthread_cond_wait(&cond_min_two, &cond_mutex);
         }
         pthread_mutex_unlock(&cond_mutex);
-
-        pthread_rwlock_rdlock(&list_rwlock);
-        if (list_length < 2) {
-            pthread_rwlock_unlock(&list_rwlock);
-            continue;
-        }
         int idx1 = rand() % list_length;
         int idx2 = rand() % list_length;
         while (idx2 == idx1) idx2 = rand() % list_length;
@@ -139,7 +108,7 @@ void* scalar_product_thread(void* arg) {
 
         double product = node1.x * node2.x + node1.y * node2.y + node1.z * node2.z;
         printf("Scalar product: %f\n", product);
-        printf("Len of list:%d\n",list_length);
+        
         pthread_rwlock_unlock(&list_rwlock);
 
         //sleep(1);
@@ -155,12 +124,8 @@ void* vector_product_thread(void* arg) {
             pthread_cond_wait(&cond_min_two, &cond_mutex);
         }
         pthread_mutex_unlock(&cond_mutex);
-
         pthread_rwlock_rdlock(&list_rwlock);
-        if (list_length < 2) {
-            pthread_rwlock_unlock(&list_rwlock);
-            continue;
-        }
+
         int idx1 = rand() % list_length;
         int idx2 = rand() % list_length;
         while (idx2 == idx1) idx2 = rand() % list_length;
@@ -198,7 +163,6 @@ void* coplanar_pairs_thread(void* arg) {
             pthread_cond_wait(&cond_min_two, &cond_mutex);
         }
         pthread_mutex_unlock(&cond_mutex);
-
         pthread_rwlock_rdlock(&list_rwlock);
         auto curr = nodes.begin();
         auto end = nodes.end();
@@ -290,10 +254,10 @@ int main() {
     pthread_join(coplanar_triples, NULL);
 
     pthread_rwlock_destroy(&list_rwlock);
-    pthread_mutex_destroy(&cond_mutex);
-    pthread_cond_destroy(&cond_non_empty);
-    pthread_cond_destroy(&cond_min_two);
-    pthread_cond_destroy(&cond_min_three);
+    // pthread_mutex_destroy(&cond_mutex);
+    // pthread_cond_destroy(&cond_non_empty);
+    // pthread_cond_destroy(&cond_min_two);
+    // pthread_cond_destroy(&cond_min_three);
 
     return 0;
 }

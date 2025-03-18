@@ -14,7 +14,7 @@ struct Ad {
 };
 
 // Глобальные переменные
-int total_time = 86400;         // Общее время на эфире в секундах 86400 = 24 часа
+int total_time = 864;         // Общее время на эфире в секундах 86400 = 24 часа
 int profit = 0;                 // Общая прибыль
 std::string filename = "ads.txt"; // Файл для хранения рекламных предложений
 pthread_cond_t cond_non_empty = PTHREAD_COND_INITIALIZER;
@@ -31,8 +31,7 @@ void* writer(void* arg) {
     int id = 1;
     while (total_time>10) {
         // Запись в файл
-        //pthread_mutex_lock(&cond_mutex); // Ожидание пока не прочитают
-        //pthread_rwlock_wrlock(&rwlock); // Блокировка для записи
+        pthread_mutex_lock(&cond_mutex); // Ожидание пока не прочитают
         std::ofstream file(filename, std::ios::trunc);
         if (file.is_open()) {
             for(int i = 0; i < random()%10+1; i++) {
@@ -44,10 +43,9 @@ void* writer(void* arg) {
         } else {
             std::cerr << "Ошибка открытия файла для записи!" << std::endl;
         }
-        pthread_cond_broadcast(&cond_non_empty);
-        //pthread_rwlock_unlock(&rwlock); // Разблокировка
-        //pthread_mutex_unlock(&cond_mutex); // Освобождение на чтение
-        //sleep(2); // Имитация задержки
+
+        pthread_mutex_unlock(&cond_mutex);
+        pthread_cond_signal(&cond_non_empty);
     }
     return nullptr;
 }
@@ -57,7 +55,7 @@ void* reader(void* arg) {
     while (total_time>10) {
         pthread_mutex_lock(&cond_mutex); // Ожидание пока будет что прочитать
         pthread_cond_wait(&cond_non_empty, &cond_mutex);
-        //pthread_rwlock_rdlock(&rwlock); // Блокировка для чтения и записи
+        
         std::ifstream file(filename);
         std::vector<Ad> new_ads;
         if (file.is_open()) {
@@ -71,7 +69,7 @@ void* reader(void* arg) {
             std::cerr << "Ошибка открытия файла для чтения!" << std::endl;
         }
         pthread_mutex_unlock(&cond_mutex); // Разблокировка
-        //sem_post(&write_s); // Освобождение на запись
+        
         // Обработка новых предложений
         
         // Сортировка по price * max_shows / duration = monet per second (от большего к меньшему)
@@ -95,19 +93,14 @@ void* reader(void* arg) {
             std::cout << "Осталось времени " << total_time << "сек. " << std::endl;
         }
 
-        //sleep(1); // Имитация задержки
     }
     return nullptr;
 }
 
 int main() {
-
-   // pthread_rwlock_init(&rwlock, nullptr);
-    //sem_init(&read_s, 0, 0);
-   // sem_init(&write_s, 0, 1);
-
     // Создание потоков
     pthread_t writer_thread, reader_thread;
+    pthread_cond_init(&cond_non_empty,NULL);
     pthread_create(&writer_thread, nullptr, writer, nullptr);
     pthread_create(&reader_thread, nullptr, reader, nullptr);
 
