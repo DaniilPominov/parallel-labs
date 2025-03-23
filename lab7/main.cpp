@@ -73,7 +73,7 @@ void* remover_thread(void* arg) {
             pthread_rwlock_unlock(&list_rwlock);
         }     
         
-        //sleep(1);
+        sleep(1);
     }
     return NULL;
 }
@@ -170,13 +170,13 @@ void* coplanar_pairs_thread(void* arg) {
         while (curr!=end && !endFlag) {
             Node node1 = *curr;
             auto curr2 = curr;
-            while (curr2!=end && !endFlag && curr!=curr2) {
+            while (curr2!=end && !endFlag) {
                 Node node2 = *curr2;
                 double cross_x = node1.y * node2.z - node1.z * node2.y;
                 double cross_y = node1.z * node2.x - node1.x * node2.z;
                 double cross_z = node1.x * node2.y - node1.y * node2.x;
                 if (cross_x == 0.0 && cross_y == 0.0 && cross_z == 0.0) {
-                    printf("Collinear pair found: (%f,%f,%f) and (%f,%f,%f)\n",
+                    printf("Collinear pair found: (%d,%d,%d) and (%d,%d,%d)\n",
                         node1.x, node1.y, node1.z, node2.x, node2.y, node2.z);
                         endFlag = true;
                         break;
@@ -208,10 +208,10 @@ void* coplanar_triples_thread(void* arg) {
         while (curr!=end && !endFlag) {
             Node a = *curr;
             auto curr2 = curr;
-            while (curr2!=end && !endFlag && curr!=curr2) {
+            while (curr2!=end && !endFlag) {
                 Node b = *curr2;
                 auto curr3 = curr;
-                while (curr3!=end && !endFlag && curr2!=curr3) {
+                while (curr3!=end && !endFlag) {
                     Node c = *curr3;
                     double cross_x = b.y * c.z - b.z * c.y;
                     double cross_y = b.z * c.x - b.x * c.z;
@@ -254,10 +254,10 @@ int main() {
     pthread_join(coplanar_triples, NULL);
 
     pthread_rwlock_destroy(&list_rwlock);
-    // pthread_mutex_destroy(&cond_mutex);
-    // pthread_cond_destroy(&cond_non_empty);
-    // pthread_cond_destroy(&cond_min_two);
-    // pthread_cond_destroy(&cond_min_three);
+    pthread_mutex_destroy(&cond_mutex);
+    pthread_cond_destroy(&cond_non_empty);
+    pthread_cond_destroy(&cond_min_two);
+    pthread_cond_destroy(&cond_min_three);
 
     return 0;
 }
