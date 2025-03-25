@@ -14,7 +14,7 @@ class Node {
 // Глобальные переменные списка
 std::forward_list<Node> nodes;
 int list_length = 0;
-// Синхронизация
+
 pthread_rwlock_t list_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_non_empty = PTHREAD_COND_INITIALIZER;
@@ -172,6 +172,7 @@ void* coplanar_pairs_thread(void* arg) {
             auto curr2 = curr;
             while (curr2!=end && !endFlag) {
                 Node node2 = *curr2;
+                if(node1.x!=node2.x || node1.y!=node2.y || node1.z!=node2.z){
                 double cross_x = node1.y * node2.z - node1.z * node2.y;
                 double cross_y = node1.z * node2.x - node1.x * node2.z;
                 double cross_z = node1.x * node2.y - node1.y * node2.x;
@@ -181,6 +182,7 @@ void* coplanar_pairs_thread(void* arg) {
                         endFlag = true;
                         break;
                 }
+            }
                 curr2++;
             }
             curr++;
@@ -210,9 +212,10 @@ void* coplanar_triples_thread(void* arg) {
             auto curr2 = curr;
             while (curr2!=end && !endFlag) {
                 Node b = *curr2;
-                auto curr3 = curr;
+                auto curr3 = curr2;
                 while (curr3!=end && !endFlag) {
                     Node c = *curr3;
+                    if(a.x!=b.x || a.y!=b.y || a.z!=b.z){
                     double cross_x = b.y * c.z - b.z * c.y;
                     double cross_y = b.z * c.x - b.x * c.z;
                     double cross_z = b.x * c.y - b.y * c.x;
@@ -220,7 +223,10 @@ void* coplanar_triples_thread(void* arg) {
                     if (dot == 0.0) {
                         printf("Coplanar triple found: (%d,%d,%d), (%d,%d,%d), (%d,%d,%d)\n",
                                a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+                               endFlag = true;
+                               break;
                     }
+                }
                     curr3++;
                 }
                 curr2++;
