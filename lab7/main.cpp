@@ -20,21 +20,30 @@ pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_non_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t cond_min_two = PTHREAD_COND_INITIALIZER;
 pthread_cond_t cond_min_three = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond_erased = PTHREAD_COND_INITIALIZER;
+
+void sleep_ms(int milliseconds) {
+    struct timespec ts;
+    ts.tv_sec = milliseconds / 1000;          // Секунды
+    ts.tv_nsec = (milliseconds % 1000) * 1e6;  // Наносекунды (1 мс = 1 000 000 нс)
+
+    nanosleep(&ts, NULL);  // Задержка с высокой точностью
+}
 
 // Поток добавления элементов
 void* adder_thread(void* arg) {
-    while (1) {
+    pthread_rwlock_wrlock(&list_rwlock);
+    for(int i=0; i<10; i++){
         Node new_node;
-
         new_node.x = rand() % 100;
         new_node.y = rand() % 100;
         new_node.z = rand() % 100;
 
-        pthread_rwlock_wrlock(&list_rwlock);
+        
 
         nodes.push_front(new_node);
         list_length++;
-        pthread_rwlock_unlock(&list_rwlock);
+        
 
         if (list_length >= 1) {
 
@@ -47,7 +56,37 @@ void* adder_thread(void* arg) {
             pthread_cond_broadcast(&cond_min_three);
         }
         std::cout<<"created new node\n";
+    }
+    pthread_rwlock_unlock(&list_rwlock);
 
+    while (1) {
+        pthread_cond_wait(&cond_erased, &cond_mutex);
+        pthread_rwlock_wrlock(&list_rwlock);
+        for(int i=0; i<10; i++){
+        Node new_node;
+        new_node.x = rand() % 100;
+        new_node.y = rand() % 100;
+        new_node.z = rand() % 100;
+
+        
+
+        nodes.push_front(new_node);
+        list_length++;
+        
+
+        if (list_length >= 1) {
+
+            pthread_cond_broadcast(&cond_non_empty);
+        }
+        if (list_length >= 2) {
+            pthread_cond_broadcast(&cond_min_two);
+        }
+        if (list_length >= 3) {
+            pthread_cond_broadcast(&cond_min_three);
+        }
+        std::cout<<"created new node\n";
+    }
+    pthread_rwlock_unlock(&list_rwlock);
         //sleep(1);
     }
     return NULL;
@@ -56,7 +95,7 @@ void* adder_thread(void* arg) {
 // Поток удаления элементов
 void* remover_thread(void* arg) {
     while (1) {
-        if(!nodes.empty()){
+        if(list_length>1){
             auto current = nodes.begin();
             auto end = nodes.end();
             int sub_iter = 0;
@@ -68,12 +107,13 @@ void* remover_thread(void* arg) {
             pthread_rwlock_wrlock(&list_rwlock);
             if(current!=end)
             nodes.erase_after(current,end);
-            list_length--;
+            list_length-=sub_iter;
             std::cout<<"remowed nodes\n";
             pthread_rwlock_unlock(&list_rwlock);
+            pthread_cond_signal(&cond_erased);
         }     
-        
-        sleep(1);
+        sleep_ms(100);
+        //sleep(1);
     }
     return NULL;
 }
@@ -86,7 +126,8 @@ void* scalar_product_thread(void* arg) {
         while (list_length < 2) {
             pthread_cond_wait(&cond_min_two, &cond_mutex);
         }
-        pthread_mutex_unlock(&cond_mutex);
+        
+        pthread_rwlock_rdlock(&list_rwlock);
         int idx1 = rand() % list_length;
         int idx2 = rand() % list_length;
         while (idx2 == idx1) idx2 = rand() % list_length;
@@ -108,7 +149,7 @@ void* scalar_product_thread(void* arg) {
 
         double product = node1.x * node2.x + node1.y * node2.y + node1.z * node2.z;
         printf("Scalar product: %f\n", product);
-        
+        pthread_mutex_unlock(&cond_mutex);
         pthread_rwlock_unlock(&list_rwlock);
 
         //sleep(1);
@@ -123,7 +164,7 @@ void* vector_product_thread(void* arg) {
         while (list_length < 2) {
             pthread_cond_wait(&cond_min_two, &cond_mutex);
         }
-        pthread_mutex_unlock(&cond_mutex);
+        
         pthread_rwlock_rdlock(&list_rwlock);
 
         int idx1 = rand() % list_length;
@@ -150,6 +191,7 @@ void* vector_product_thread(void* arg) {
         double cross_z = node1.x * node2.y - node1.y * node2.x;
         printf("Vector product: (%d, %d, %d)\n", cross_x, cross_y, cross_z);
         pthread_rwlock_unlock(&list_rwlock);
+        pthread_mutex_unlock(&cond_mutex);
         //sleep(1);
     }
     return NULL;
@@ -162,7 +204,7 @@ void* coplanar_pairs_thread(void* arg) {
         while (list_length < 2) {
             pthread_cond_wait(&cond_min_two, &cond_mutex);
         }
-        pthread_mutex_unlock(&cond_mutex);
+        
         pthread_rwlock_rdlock(&list_rwlock);
         auto curr = nodes.begin();
         auto end = nodes.end();
@@ -188,6 +230,7 @@ void* coplanar_pairs_thread(void* arg) {
             curr++;
         }
         pthread_rwlock_unlock(&list_rwlock);
+        pthread_mutex_unlock(&cond_mutex);
 
         //sleep(1);
     }
@@ -201,7 +244,7 @@ void* coplanar_triples_thread(void* arg) {
         while (list_length < 3) {
             pthread_cond_wait(&cond_min_three, &cond_mutex);
         }
-        pthread_mutex_unlock(&cond_mutex);
+        
 
         pthread_rwlock_rdlock(&list_rwlock);
         auto curr = nodes.begin();
@@ -233,6 +276,7 @@ void* coplanar_triples_thread(void* arg) {
             }
             curr++;
         }
+        pthread_mutex_unlock(&cond_mutex);
         pthread_rwlock_unlock(&list_rwlock);
 
         //sleep(1);
@@ -264,6 +308,7 @@ int main() {
     pthread_cond_destroy(&cond_non_empty);
     pthread_cond_destroy(&cond_min_two);
     pthread_cond_destroy(&cond_min_three);
+    pthread_cond_destroy(&cond_erased);
 
     return 0;
 }
