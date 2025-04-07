@@ -83,7 +83,7 @@ void* thread_function(void* arg) {
     ThreadData* data = (ThreadData*)arg;
     
     while (1) {
-        pthread_barrier_wait(data->barrier);
+        //pthread_barrier_wait(data->barrier);
         
         if (*(data->stop_flag)) {
             break;
