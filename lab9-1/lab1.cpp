@@ -1,55 +1,88 @@
+#include <iostream>
+#include <cstring>
 #include <mpi.h>
-#include <stdio.h>
-#include <stdlib.h>
-//размерность векторов выбрана как 526
-#define RAZMERNOST_VEKTOROV 526
-int main()
-{ MPI_Init(0,0) ; //инициализация MPI
-int rank,size; //узнаем ранг каждого процесса и их общее число
-MPI_Comm_rank(MPI_COMM_WORLD, &rank) ;
-MPI_Comm_size(MPI_COMM_WORLD, &size) ;
-int N = RAZMERNOST_VEKTOROV ;
-if (N<0) N=-N ; if (N<1) N=1 ; //проверка корректности размерности
-int kol=N/size ; //kol - число элементов вектора на каждый процесс
-if (size>N) //если число процессов больше размерности векторов
-{ //нулевой процесс выводит информацию о закрытии программы
-if (rank==0) printf("\nЧисло процессов избыточно по сравнению собрабатываемыми данными \nВыход из программы") ; /*все процессы дают
-MPI сигнал о завершении работы и завершаются*/
-MPI_Finalize() ; return 0 ; }
-if (rank==0) printf("\nКоординаты векторов определяются случайно") ;
-int *A ; //часть первого вектора для каждого процесса
-int *B ; //часть второго вектора для каждого процесса
-int N_AB ; //число элементов в конкретном процессе
-//ненулевые процессы выделяют память под kol элементов
-if (rank!=0) { A=new int [kol] ; B=new int [kol] ; N_AB=kol ; }
-//а нулевой процесс под оставшееся до "добора" N число элементов
-else { A=new int [N-kol*(size-1)] ;
-B=new int [N-kol*(size-1)] ; N_AB=N-kol*(size-1) ; }
-/*одному процессу (здесь нулевому) может достаться число
-координат отличное от числа координат у всех остальных процессов, если
-N/size не делятся нацело, что и отражено в ветви else*/
-/*процессы случайно заполняют кординаты векторов и считают свою
-часть скалярного произведения*/
-int i, sum ;
-srand(rank) ; //основание случайного ряда в каждом процессе свое
-for (i=0 ; i<N_AB ; i++) { A[i]=random()%10-4 ; B[i]=random()%9-4 ;}
-for (sum=0, i=0 ; i<N_AB ; i++) sum+=A[i]*B[i] ;
-/*все процессы, кроме нулевого, отсылают свои результаты нулевому
-процессу*/
-if (rank!=0) MPI_Send(&sum,1,MPI_INT,0,0,MPI_COMM_WORLD) ;
-//нулевой процесс принимает все сообщения и выводит общую сумму
-if (rank==0)
-{ int buf ; //для приема
-MPI_Status status ;
-printf("\nСумма нулевого процесса = %d",sum) ;
-for (i=0 ; i<size-1 ; i++)
-{ MPI_Recv(&buf, 1, MPI_INT, MPI_ANY_SOURCE,
-MPI_ANY_TAG, MPI_COMM_WORLD, &status) ;
-sum+=buf ;
-printf("\nПолучена сумма = %d, общая сумма = %d", buf,
-sum) ;
+
+using namespace std;
+
+bool is_vowel(char c) {
+    c = tolower(c);
+    return (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u');
 }
-printf("\nРезультат = %d",sum) ;
+
+int count_vowels(const char* text, int len) {
+    int count = 0;
+    for (int i = 0; i < len; ++i) {
+        if (is_vowel(text[i])) {
+            ++count;
+        }
+    }
+    return count;
 }
-MPI_Finalize() ; return 1 ;
+
+int main() {
+    MPI_Init(NULL, NULL);
+
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    char* text = nullptr;
+    int length = 0;
+
+    if (rank == 0) {
+        string str;
+        cout << "Type an english string:" << endl;
+        getline(cin, str);
+        length = str.size();
+        text = new char[length + 1];
+        strcpy(text, str.c_str());
+    }
+
+    MPI_Bcast(&length, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    int chunk_size = length / size;
+    int remainder = length % size;
+    int start, end;
+
+    if (rank < remainder) {
+        start = rank * (chunk_size + 1);
+        end = start + chunk_size + 1;
+    } else {
+        start = rank * chunk_size + remainder;
+        end = start + chunk_size;
+    }
+
+    char* local_text = new char[end - start + 1];
+    
+    if (rank == 0) {
+        for (int i = 1; i < size; ++i) {
+            int i_start, i_end;
+            if (i < remainder) {
+                i_start = i * (chunk_size + 1);
+                i_end = i_start + chunk_size + 1;
+            } else {
+                i_start = i * chunk_size + remainder;
+                i_end = i_start + chunk_size;
+            }
+            MPI_Send(text + i_start, i_end - i_start, MPI_CHAR, i, 0, MPI_COMM_WORLD);
+        }
+        memcpy(local_text, text + start, end - start);
+        delete[] text;
+    } else {
+        MPI_Recv(local_text, end - start, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+
+    local_text[end - start] = '\0';
+    int local_count = count_vowels(local_text, end - start);
+    delete[] local_text;
+
+    int total_count;
+    MPI_Reduce(&local_count, &total_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if (rank == 0) {
+        cout << "Total vowels: " << total_count << endl;
+    }
+
+    MPI_Finalize();
+    return 0;
 }
