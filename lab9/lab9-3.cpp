@@ -19,7 +19,7 @@ Dish dish_database[] = {
     {"Десерт", 250}, {"Напиток", 100}, {"Закуска", 180}, 
     {"Бургер", 320}
 };
-int database_len = sizeof(dish_database)/sizeof(Dish);
+int database_len = std::size(dish_database);
 
 MPI_Datatype MPI_Dish_type;
 

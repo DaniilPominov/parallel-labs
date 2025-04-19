@@ -64,6 +64,7 @@ int main(int argc, char** argv) {
                 i_start = i * chunk_size + remainder;
                 i_end = i_start + chunk_size;
             }
+            //root sends data to other processes 
             MPI_Send(text + i_start, i_end - i_start, MPI_CHAR, i, 0, MPI_COMM_WORLD);
         }
         memcpy(local_text, text + start, end - start);
@@ -73,10 +74,12 @@ int main(int argc, char** argv) {
     }
 
     local_text[end - start] = '\0';
+    std::cout<<local_text<<rank<<'\n';
     int local_count = count_vowels(local_text, end - start);
     delete[] local_text;
 
     int total_count;
+    //*total_count = sum local_counts => root
     MPI_Reduce(&local_count, &total_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
