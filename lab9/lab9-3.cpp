@@ -1,25 +1,25 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <mpi.h>
-#include <time.h>
+#include <ctime>
+#include <array>
 
-#define MAX_DISHES 10
-#define MAX_DISH_NAME 50
-#define NUM_PROCESSES 3
+constexpr int MAX_DISHES = 10;
+constexpr int MAX_DISH_NAME = 50;
+constexpr int NUM_PROCESSES = 3;
 
-typedef struct {
+struct Dish {
     char name[MAX_DISH_NAME];
     int price;
-} Dish;
+};
 
-Dish dish_database[] = {
+const std::array<Dish, 10> dish_database = {{
     {"Пицца", 350}, {"Суп", 200}, {"Салат", 150}, 
     {"Стейк", 500}, {"Рыба", 400}, {"Паста", 300}, 
     {"Десерт", 250}, {"Напиток", 100}, {"Закуска", 180}, 
     {"Бургер", 320}
-};
-int database_len = std::size(dish_database);
+}};
 
 MPI_Datatype MPI_Dish_type;
 
@@ -36,20 +36,20 @@ void create_dish_type() {
 }
 
 void select_random_dishes(Dish* selected, int* count) {
-    *count = rand()%3 + 1;
-    for(int i=0; i<*count; i++) 
-        selected[i] = dish_database[rand()%database_len];
+    *count = rand() % 3 + 1;
+    for(int i = 0; i < *count; i++) 
+        selected[i] = dish_database[rand() % dish_database.size()];
 }
 
 int check_common(Dish* data, int* counts, int* displs) {
-    for(int i=0; i<counts[0]; i++) {
-        Dish* d0 = &data[displs[0]+i];
+    for(int i = 0; i < counts[0]; i++) {
+        Dish* d0 = &data[displs[0] + i];
         int found = 1;
         
-        for(int p=1; p<NUM_PROCESSES; p++) {
+        for(int p = 1; p < NUM_PROCESSES; p++) {
             int exists = 0;
-            for(int j=0; j<counts[p]; j++) {
-                Dish* dp = &data[displs[p]+j];
+            for(int j = 0; j < counts[p]; j++) {
+                Dish* dp = &data[displs[p] + j];
                 if(strcmp(d0->name, dp->name) == 0) {
                     exists = 1;
                     break;
@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
     int local_count;
     int stop = 0;
     
-    Dish* global_dishes = NULL;
+    Dish* global_dishes = nullptr;
     int global_counts[NUM_PROCESSES] = {0};
     int displs[NUM_PROCESSES] = {0};
     
@@ -95,9 +95,9 @@ int main(int argc, char** argv) {
         
         // Расчет смещений
         if(rank == 0) {
-            for(int i=1; i<NUM_PROCESSES; i++)
+            for(int i = 1; i < NUM_PROCESSES; i++)
                 displs[i] = displs[i-1] + global_counts[i-1];
-            global_dishes = (Dish*)malloc((displs[2]+global_counts[2])*sizeof(Dish));
+            global_dishes = new Dish[displs[2] + global_counts[2]];
         }
         
         // Сбор данных
@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
         int found = 0;
         if(rank == 0) {
             found = check_common(global_dishes, global_counts, displs);
-            if(!found) free(global_dishes);
+            if(!found) delete[] global_dishes;
         }
         
         // Проверка сходимости
@@ -119,14 +119,14 @@ int main(int argc, char** argv) {
     // Вывод результатов
     if(rank == 0) {
         printf("\nОбщие блюда найдены! Результаты:\n");
-        for(int p=0; p<NUM_PROCESSES; p++) {
+        for(int p = 0; p < NUM_PROCESSES; p++) {
             printf("Процесс %d:\n", p+1);
-            for(int i=0; i<global_counts[p]; i++) {
-                Dish* d = &global_dishes[displs[p]+i];
+            for(int i = 0; i < global_counts[p]; i++) {
+                Dish* d = &global_dishes[displs[p] + i];
                 printf("  %-10s %4d руб.\n", d->name, d->price);
             }
         }
-        free(global_dishes);
+        delete[] global_dishes;
     }
     
     MPI_Type_free(&MPI_Dish_type);
