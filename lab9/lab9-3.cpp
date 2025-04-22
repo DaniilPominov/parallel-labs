@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
         // Выбор блюд
         select_random_dishes(local_dishes, &local_count);
         
-        // Сбор количества
+        // Сбор количества выбранных блюд
         MPI_Gather(&local_count, 1, MPI_INT, global_counts, 1, MPI_INT, 0, MPI_COMM_WORLD);
         
         // Расчет смещений
@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
             global_dishes = new Dish[displs[2] + global_counts[2]];
         }
         
-        // Сбор данных
+        // Сбор данных о блюдах
         MPI_Gatherv(local_dishes, local_count, MPI_Dish_type, 
                    global_dishes, global_counts, displs, MPI_Dish_type, 0, MPI_COMM_WORLD);
         
